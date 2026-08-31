@@ -1,0 +1,38 @@
+[
+  {
+    "id": "T1059.001",
+    "name": "PowerShell",
+    "tactic": "Execution",
+    "description": "Adversaries may use PowerShell to execute commands, scripts, or payloads to perform malicious actions on a victim system. PowerShell is often abused for script execution, reconnaissance, and command-and-control activity."
+  },
+  {
+    "id": "T1003.001",
+    "name": "LSASS Memory",
+    "tactic": "Credential Access",
+    "description": "Attackers may dump the contents of the Local Security Authority Subsystem Service (LSASS) process memory to harvest credentials such as passwords and hashes. This technique is commonly associated with credential theft and lateral movement."
+  },
+  {
+    "id": "T1110",
+    "name": "Brute Force",
+    "tactic": "Credential Access",
+    "description": "Repeated login attempts or password spraying can be used to gain access to user accounts. Brute force attempts often target SMB, RDP, SSH, VPN, web portals, and other authentication services."
+  },
+  {
+    "id": "T1021.001",
+    "name": "Remote Desktop Protocol",
+    "tactic": "Lateral Movement",
+    "description": "Adversaries may use Remote Desktop Protocol (RDP) to move laterally across systems after compromise. RDP is often abused for interactive access to targeted hosts and privileged administration."
+  },
+  {
+    "id": "T1547.001",
+    "name": "Registry Run Keys / Startup Folder",
+    "tactic": "Persistence",
+    "description": "Attackers may configure registry run keys or startup folder entries to execute malicious code automatically when a user logs in or the system starts. This allows persistence without requiring direct user interaction."
+  },
+  {
+    "id": "T1078",
+    "name": "Valid Accounts",
+    "tactic": "Defense Evasion",
+    "description": "Adversaries may use valid user accounts to blend in with normal activity, evade detection, and maintain persistence. This technique often follows credential theft or password reuse across multiple systems."
+  }
+]

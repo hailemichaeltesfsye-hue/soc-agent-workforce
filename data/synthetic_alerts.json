@@ -1,0 +1,18 @@
+[
+  {
+    "incident_id": "INC-2026-001",
+    "case_title": "Suspicious PowerShell Execution on Endpoint",
+    "source": "simulator",
+    "severity": "high",
+    "alert_summary": "PowerShell executed suspicious commands and attempted LSASS credential access on a Windows endpoint.",
+    "ip_addresses": ["8.8.8.8"],
+    "domains": ["example-malware.net"],
+    "hashes": ["abc123def456"],
+    "alert_id": "ALERT-1001",
+    "raw_event_context": {
+      "host": "WS-17",
+      "process": "powershell.exe",
+      "command_line": "powershell -enc <base64>"
+    }
+  }
+]

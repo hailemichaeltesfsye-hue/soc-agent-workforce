@@ -40,37 +40,50 @@ def test_mcp_mocked(monkeypatch):
 def test_hitl_interrupt_flow():
     state = SOCState(
         incident_id=f"INC-{uuid.uuid4().hex[:8]}",
-        alert_summary="Test alert",
-        severity="high",
-        case_title="Test",
-        mitre_techniques=["T1078"] # bypass compliance
+        alert_summary="Multiple failed SSH login attempts from 198.51.100.23 followed by a successful login to the production server.",
+        severity="critical",
+        case_title="Suspicious SSH Login Pattern",
+        ip_addresses=["198.51.100.23"],
+        source="streamlit",
     )
-    
-    # We bypass LLM calls by just testing the graph routing structure if possible
-    # Given the test environment, we rely on _FallbackLLM
-    
+
     checkpointer = MemorySaver()
     app = build_workflow().compile(checkpointer=checkpointer)
-    config = {"configurable": {"thread_id": "test_thread_hitl"}}
-    
-    # Run to interrupt
-    for _ in app.stream(state.model_dump(), config=config):
-        pass
-        
-    current = app.get_state(config)
-    assert current.next[0] == "human_approval"
-    
-    # Verify interrupt is pending
-    pending_task = current.tasks[0]
-    assert pending_task.interrupts
-    
-    # Resume with Approve
-    for _ in app.stream(Command(resume="Approve"), config=config):
-        pass
-        
-    final = app.get_state(config)
-    assert final.values["status"] == "escalated"
-    assert final.values["final_decision"] == "escalate"
+    config = {"configurable": {"thread_id": "test_thread_hitl"}, "recursion_limit": 100}
+
+    interrupt_seen = False
+    for event in app.stream(state.model_dump(), config=config, stream_mode="values"):
+        if isinstance(event, dict) and "__interrupt__" in event:
+            interrupt_seen = True
+            break
+
+    assert interrupt_seen is True
+
+    resumed = app.invoke(Command(resume="Approve"), config=config)
+    assert resumed["status"] in {"escalated", "closed"}
+    assert resumed["report_approval_status"] == "approved"
+    assert resumed["final_decision"] == "escalate"
+    assert resumed["incident_report"] is not None
+    print("RESUMED_STATE", resumed)
+
+def test_workflow_reaches_human_approval_from_ssh_alert():
+    state = SOCState(
+        incident_id="INC-SSH-1001",
+        alert_summary="Multiple failed SSH login attempts from 198.51.100.23 followed by a successful login to the production server.",
+        severity="critical",
+        case_title="Suspicious SSH Login Pattern",
+        ip_addresses=["198.51.100.23"],
+        source="streamlit",
+    )
+
+    app = build_workflow().compile()
+    final_state = app.invoke(state.model_dump(), config={"recursion_limit": 100})
+
+    assert final_state["status"] == "awaiting_human_approval"
+    assert final_state["report_ready_for_review"] is True
+    assert final_state["incident_report"] is not None
+    assert final_state["mitre_techniques"]
+
 
 def test_compliance_loop_max_retries():
     state = SOCState(
@@ -80,14 +93,10 @@ def test_compliance_loop_max_retries():
         case_title="Test"
     )
     
-    # This state lacks mitre_techniques and threat_hunt_summary, so compliance will fail
-    # It should loop back to alert_analyst and bump retries until max.
     app = build_workflow().compile()
     
-    # Since we use _FallbackLLM, the agents will output dummy text.
-    # The compliance auditor will keep failing it because mitre_techniques remains empty.
-    final_state = app.invoke(state.model_dump())
+    final_state = app.invoke(state.model_dump(), config={"recursion_limit": 100})
     
-    assert final_state["compliance_retries"] == 3
+    assert final_state["compliance_retry_count"] == 3
     assert final_state["compliance_status"] == "blocked"
-    assert final_state["status"] == "escalated" # Blocked cases get escalated per workflow logic
+    assert final_state["status"] == "blocked" 

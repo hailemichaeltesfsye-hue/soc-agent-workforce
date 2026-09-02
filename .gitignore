@@ -1,5 +1,13 @@
+.env
 .venv/
+.venv/**
 __pycache__/
 *.pyc
-.env
+.chroma/
+.streamlit/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+*.log
+.DS_Store

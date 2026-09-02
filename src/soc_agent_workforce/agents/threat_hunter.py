@@ -12,6 +12,13 @@ class ThreatHunterAgent(BaseAgent):
     system_prompt = "You are the Threat Hunter. Critique triage quality and add hunting findings."
 
     def run(self, state: SOCState) -> SOCState:
+        if state.self_healing_status == "max_retries_reached" or state.self_healing_retry_count >= state.self_healing_max_retries:
+            state.self_healing_status = "max_retries_reached"
+            state.status = "triaged"
+            state.last_agent = self.agent_name
+            state.notes.append("Threat Hunter has reached the retry cap; continuing to compliance review without re-entering self-healing.")
+            return state
+
         hunter_findings = []
         is_weak = (
             not state.alert_summary
@@ -23,6 +30,19 @@ class ThreatHunterAgent(BaseAgent):
 
         if is_weak:
             state.self_healing_retry_count += 1
+
+            if state.self_healing_retry_count >= state.self_healing_max_retries:
+                state.self_healing_status = "max_retries_reached"
+                state.status = "triaged"
+                state.reviewer_feedback = (
+                    "Triage remains weak after the retry budget. Proceeding to compliance review with the current evidence."
+                )
+                state.threat_hunt_summary = "Triage rejected: insufficient behavioral evidence to proceed safely."
+                state.threat_hunt_findings = [state.threat_hunt_summary]
+                state.last_agent = self.agent_name
+                state.notes.append("Threat Hunter exhausted self-healing retries and forced the case to compliance review.")
+                return state
+
             state.self_healing_status = "rejected"
             state.reviewer_feedback = (
                 "Triage is incomplete and too ambiguous for reliable action. "

@@ -12,6 +12,13 @@ class ComplianceAuditorAgent(BaseAgent):
     system_prompt = "You are the Compliance Auditor. Ensure required fields are present before moving forward."
 
     def run(self, state: SOCState) -> SOCState:
+        if state.compliance_status == "blocked" or state.status == "blocked" or state.compliance_retry_count >= state.compliance_max_retries:
+            state.compliance_status = "blocked"
+            state.status = "blocked"
+            state.last_agent = self.agent_name
+            state.notes.append("Compliance Auditor blocked the workflow because the retry cap was reached.")
+            return state
+
         required_fields = {
             "incident_id": lambda s: bool(s.incident_id),
             "alert_summary": lambda s: bool(s.alert_summary and s.alert_summary.strip()),
@@ -44,6 +51,7 @@ class ComplianceAuditorAgent(BaseAgent):
         state.compliance_findings = compliance_findings
 
         if missing:
+            state.compliance_retry_count += 1
             state.compliance_status = "failed"
             state.status = "needs_revision"
             state.report_ready_for_review = False
@@ -54,6 +62,7 @@ class ComplianceAuditorAgent(BaseAgent):
                     "Compliance retry cap exceeded; escalate to manual review or fix the state before continuing."
                 )
         else:
+            state.compliance_retry_count = 0
             state.compliance_status = "passed"
             state.report_ready_for_review = True
             state.status = "triaged"
